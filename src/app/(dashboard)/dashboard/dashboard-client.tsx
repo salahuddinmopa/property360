@@ -90,10 +90,14 @@ export function DashboardClient({
   stats,
   monthlyChartData,
   yearlyChartData,
+  assetTypeIncomeThisMonth = {},
+  propertyTypeCounts = {},
 }: {
   stats: DashboardStats
   monthlyChartData: { month: string; income: number; expenses: number; profit: number }[]
   yearlyChartData: { year: string; income: number; expenses: number; profit: number }[]
+  assetTypeIncomeThisMonth?: Record<string, number>
+  propertyTypeCounts?: Record<string, number>
 }) {
   const incomeTrend = stats.lastMonthIncome > 0
     ? ((stats.monthlyIncome - stats.lastMonthIncome) / stats.lastMonthIncome) * 100
@@ -169,6 +173,46 @@ export function DashboardClient({
         <StatCard title="Vehicles" value={stats.totalVehicles} icon={Car} color="purple" />
         <StatCard title="Active Agreements" value={stats.activeAgreements} icon={FileWarning} color="orange" />
       </div>
+
+      {/* Dynamic property type breakdown */}
+      {(Object.keys(propertyTypeCounts).length > 0 || Object.keys(assetTypeIncomeThisMonth).length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {Object.keys(propertyTypeCounts).length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Properties by Type</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(propertyTypeCounts).sort((a, b) => b[1] - a[1]).map(([type, count]) => (
+                    <div key={type} className="flex items-center gap-1.5 bg-slate-50 border rounded-md px-3 py-1.5">
+                      <span className="text-sm font-medium">{count}</span>
+                      <span className="text-xs text-muted-foreground">{type}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {Object.keys(assetTypeIncomeThisMonth).length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">This Month Income by Asset Type</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-2">
+                  {Object.entries(assetTypeIncomeThisMonth).sort((a, b) => b[1] - a[1]).map(([type, income]) => (
+                    <div key={type} className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{type}</span>
+                      <span className="font-semibold text-green-700">{formatCurrency(income)}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

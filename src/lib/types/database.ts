@@ -18,12 +18,25 @@ export interface Database {
         Insert: Omit<Database['public']['Tables']['profiles']['Row'], 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['profiles']['Insert']>
       }
+      property_types: {
+        Row: {
+          id: string
+          owner_id: string | null
+          name: string
+          is_default: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['property_types']['Row'], 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Database['public']['Tables']['property_types']['Insert']>
+      }
       properties: {
         Row: {
           id: string
           owner_id: string
           name: string
-          type: 'market' | 'apartment' | 'vehicle'
+          type: string
+          property_type: string
           address: string | null
           description: string | null
           ownership_details: string | null
@@ -279,6 +292,7 @@ export interface Database {
 
 // Convenient type aliases
 export type Profile = Database['public']['Tables']['profiles']['Row']
+export type PropertyType = Database['public']['Tables']['property_types']['Row']
 export type Property = Database['public']['Tables']['properties']['Row']
 export type Market = Database['public']['Tables']['markets']['Row']
 export type Shop = Database['public']['Tables']['shops']['Row']

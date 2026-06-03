@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PageHeader } from '@/components/shared/page-header'
 import { Button } from '@/components/ui/button'
@@ -28,8 +28,16 @@ export default function ReportsPage() {
   const [reportType, setReportType] = useState('monthly')
   const [month, setMonth] = useState(new Date().getMonth() + 1)
   const [year, setYear] = useState(new Date().getFullYear())
+  const [assetTypeFilter, setAssetTypeFilter] = useState('all')
+  const [propertyTypes, setPropertyTypes] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [reportData, setReportData] = useState<ReportData | null>(null)
+
+  useEffect(() => {
+    supabase.from('property_types').select('name').order('name').then(({ data }) => {
+      setPropertyTypes(data?.map(t => t.name) ?? [])
+    })
+  }, [])
 
   async function generateReport() {
     setLoading(true)
@@ -45,17 +53,21 @@ export default function ReportsPage() {
       endDate = `${year}-12-31`
     }
 
+    let paymentsQuery = supabase.from('rent_payments')
+      .select('*, tenants(full_name)')
+      .eq('year', year)
+    if (reportType === 'monthly') paymentsQuery = paymentsQuery.eq('month', month)
+    if (assetTypeFilter !== 'all') paymentsQuery = paymentsQuery.eq('asset_type', assetTypeFilter.toLowerCase())
+
+    let expensesQuery = supabase.from('expenses')
+      .select('*')
+      .gte('expense_date', startDate)
+      .lte('expense_date', endDate)
+    if (assetTypeFilter !== 'all') expensesQuery = expensesQuery.eq('asset_type', assetTypeFilter.toLowerCase())
+
     const [{ data: payments }, { data: expenses }] = await Promise.all([
-      supabase.from('rent_payments')
-        .select('*, tenants(full_name)')
-        .gte(reportType === 'monthly' ? 'created_at' : 'created_at', startDate)
-        .lte(reportType === 'monthly' ? 'created_at' : 'created_at', endDate + 'T23:59:59')
-        .eq(reportType === 'monthly' ? 'month' : 'year', reportType === 'monthly' ? month : year)
-        .eq(reportType === 'monthly' ? 'year' : 'year', year),
-      supabase.from('expenses')
-        .select('*')
-        .gte('expense_date', startDate)
-        .lte('expense_date', endDate),
+      paymentsQuery,
+      expensesQuery,
     ])
 
     const incomeRows = (payments ?? []).map(p => ({
@@ -78,7 +90,7 @@ export default function ReportsPage() {
     const totalExpenses = expenseRows.reduce((s, r) => s + r.amount, 0)
 
     setReportData({
-      type: reportType,
+      type: reportType + (assetTypeFilter !== 'all' ? ` — ${assetTypeFilter}` : ''),
       month,
       year,
       income: incomeRows,
@@ -215,6 +227,21 @@ export default function ReportsPage() {
               <Select value={year.toString()} onValueChange={v => setYear(parseInt(v))}>
                 <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
                 <SelectContent>{YEARS.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Asset Type</Label>
+              <Select value={assetTypeFilter} onValueChange={setAssetTypeFilter}>
+                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Asset Types</SelectItem>
+                  <SelectItem value="shop">Shop</SelectItem>
+                  <SelectItem value="apartment">Apartment</SelectItem>
+                  <SelectItem value="vehicle">Vehicle</SelectItem>
+                  {propertyTypes.filter(t => !['Market', 'Shop', 'Apartment', 'Vehicle', 'Car', 'Microbus', 'Truck', 'Motorcycle'].includes(t)).map(t => (
+                    <SelectItem key={t} value={t.toLowerCase()}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
             <Button onClick={generateReport} disabled={loading}>
